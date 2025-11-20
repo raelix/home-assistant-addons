@@ -715,9 +715,9 @@
   function innerW(){ return Math.max(2,cssW-2*PAD); }
   function innerH(){ return Math.max(2,cssH-2*PAD); }
   const toPxX=(x)=> PAD+(x-X_MIN)/WORLD_W*innerW();
-  const toPxY=(y)=> PAD+(y-Y_MIN)/WORLD_H*innerH();
+  const toPxY=(y)=> PAD+(Y_MAX-y)/WORLD_H*innerH();  // Inverted: Y_MAX at top, Y_MIN at bottom
   const toCmX=(px)=> X_MIN+((px-PAD)/innerW())*WORLD_W;
-  const toCmY=(py)=> Y_MIN+((py-PAD)/innerH())*WORLD_H;
+  const toCmY=(py)=> Y_MAX-((py-PAD)/innerH())*WORLD_H;  // Inverted
 
   function drawGrid(){
     ctx.save();
