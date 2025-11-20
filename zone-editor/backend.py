@@ -106,7 +106,7 @@ def historical_targets():
                 print("template error details:", r.text, flush=True)
                 return jsonify({'error': 'template error', 'details': r.text}), r.status_code
             arr = r.json() or []
-            entity_ids = [e['entity_id'] for e in arr if e['entity_id'].endswith('target_1_x') or e['entity_id'].endswith('target_1_y') or e['entity_id'].endswith('target_2_x') or e['entity_id'].endswith('target_2_y') or e['entity_id'].endswith('target_3_x') or e['entity_id'].endswith('target_3_y')]
+            entity_ids = [e['entity_id'] for e in arr if e['entity_id'].endswith('target1_x') or e['entity_id'].endswith('target1_y') or e['entity_id'].endswith('target2_x') or e['entity_id'].endswith('target2_y') or e['entity_id'].endswith('target3_x') or e['entity_id'].endswith('target3_y')]
 
         print("entity_ids to use:", entity_ids, flush=True)
 
@@ -147,9 +147,15 @@ def historical_targets():
                 except ValueError:
                     continue
 
+                # Parse EPL LD2450 entity names: sensor.target1_x, sensor.target1_y, etc.
                 parts = entity_id.split('_')
-                target_num = parts[-2]
-                axis = parts[-1]
+                axis = parts[-1]  # 'x' or 'y'
+
+                # Extract target number from the second-to-last part (e.g., 'target1' -> '1')
+                if len(parts) >= 2 and parts[-2].startswith('target'):
+                    target_num = parts[-2].replace('target', '')
+                else:
+                    continue
 
                 if axis not in ['x', 'y'] or target_num not in ['1','2','3']:
                     continue
@@ -161,7 +167,8 @@ def historical_targets():
                 if target_num not in positions[ts]:
                     positions[ts][target_num] = {}
 
-                positions[ts][target_num][axis] = num_state
+                # EPL LD2450 reports coordinates in mm, convert to cm
+                positions[ts][target_num][axis] = num_state / 10.0
 
         pos_list = []
         for ts, targets in positions.items():
