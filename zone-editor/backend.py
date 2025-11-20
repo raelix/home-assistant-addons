@@ -106,7 +106,7 @@ def historical_targets():
                 print("template error details:", r.text, flush=True)
                 return jsonify({'error': 'template error', 'details': r.text}), r.status_code
             arr = r.json() or []
-            entity_ids = [e['entity_id'] for e in arr if e['entity_id'].endswith('target1_x') or e['entity_id'].endswith('target1_y') or e['entity_id'].endswith('target2_x') or e['entity_id'].endswith('target2_y') or e['entity_id'].endswith('target3_x') or e['entity_id'].endswith('target3_y')]
+            entity_ids = [e['entity_id'] for e in arr if e['entity_id'].endswith('target_1_x') or e['entity_id'].endswith('target_1_y') or e['entity_id'].endswith('target_2_x') or e['entity_id'].endswith('target_2_y') or e['entity_id'].endswith('target_3_x') or e['entity_id'].endswith('target_3_y')]
 
         print("entity_ids to use:", entity_ids, flush=True)
 
@@ -147,15 +147,16 @@ def historical_targets():
                 except ValueError:
                     continue
 
-                # Parse EPL LD2450 entity names: sensor.target1_x, sensor.target1_y, etc.
+                # Parse EPL entity names: sensor.epl_target_1_x -> target number = '1', axis = 'x'
                 parts = entity_id.split('_')
                 axis = parts[-1]  # 'x' or 'y'
 
-                # Extract target number from the second-to-last part (e.g., 'target1' -> '1')
-                if len(parts) >= 2 and parts[-2].startswith('target'):
-                    target_num = parts[-2].replace('target', '')
-                else:
+                # For sensor.epl_target_1_x: parts = ['sensor.epl', 'target', '1', 'x']
+                # parts[-2] = '1', parts[-3] = 'target'
+                if len(parts) < 3 or parts[-3] != 'target':
                     continue
+
+                target_num = parts[-2]  # '1', '2', or '3'
 
                 if axis not in ['x', 'y'] or target_num not in ['1','2','3']:
                     continue

@@ -436,17 +436,17 @@
 ) %}
 {% for s in states if (s.entity_id | device_id) == dev %}
   {% set id = s.entity_id %}
-  {% if id.endswith('target1_x') %}{% set out.x1 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target1_y') %}{% set out.y1 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target1_angle') %}{% set out.a1 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target_1_x') %}{% set out.x1 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_1_y') %}{% set out.y1 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_1_angle') %}{% set out.a1 = (s.state | float(0)) %}{% endif %}
 
-  {% if id.endswith('target2_x') %}{% set out.x2 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target2_y') %}{% set out.y2 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target2_angle') %}{% set out.a2 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target_2_x') %}{% set out.x2 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_2_y') %}{% set out.y2 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_2_angle') %}{% set out.a2 = (s.state | float(0)) %}{% endif %}
 
-  {% if id.endswith('target3_x') %}{% set out.x3 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target3_y') %}{% set out.y3 = ((s.state | float(0)) / 10.0) %}{% endif %}
-  {% if id.endswith('target3_angle') %}{% set out.a3 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target_3_x') %}{% set out.x3 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_3_y') %}{% set out.y3 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target_3_angle') %}{% set out.a3 = (s.state | float(0)) %}{% endif %}
 {% endfor %}
 {{ {
   '1': {'x': out.x1, 'y': out.y1, 'angle': out.a1},
