@@ -412,17 +412,16 @@
 {% set out = namespace(items=[], ids=[]) %}
 {% for s in states %}
   {% set dev = s.entity_id | device_id %}
-  {% set mfr = (device_attr(dev,'manufacturer') or '') | lower %}
-  {% if dev and (dev not in out.ids) and (
-    'everything' in mfr or
-    mfr == 'esphome' or
-    'presence lite' in (device_attr(dev,'name') or device_attr(dev,'model') or '') | lower or
-    'ld2450' in (device_attr(dev,'model') or '') | lower
-  ) %}
-    {% set name = device_attr(dev,'name_by_user') or device_attr(dev,'name') or dev %}
-    {% set model = device_attr(dev,'model') or '' %}
-    {% set out.items = out.items + [ { 'device_id': dev, 'name': name, 'model': model } ] %}
-    {% set out.ids = out.ids + [ dev ] %}
+  {% if dev and (dev not in out.ids) %}
+    {% set mfr = (device_attr(dev,'manufacturer') or '') | lower %}
+    {% set dev_name = (device_attr(dev,'name') or '') | lower %}
+    {% set dev_model = (device_attr(dev,'model') or '') | lower %}
+    {% if 'everything' in mfr or mfr == 'esphome' or 'presence lite' in dev_name or 'presence lite' in dev_model or 'ld2450' in dev_model %}
+      {% set name = device_attr(dev,'name_by_user') or device_attr(dev,'name') or dev %}
+      {% set model = device_attr(dev,'model') or '' %}
+      {% set out.items = out.items + [ { 'device_id': dev, 'name': name, 'model': model } ] %}
+      {% set out.ids = out.ids + [ dev ] %}
+    {% endif %}
   {% endif %}
 {% endfor %}
 {{ out.items | tojson }}
