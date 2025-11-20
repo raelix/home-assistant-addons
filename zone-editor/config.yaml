@@ -1,7 +1,7 @@
-name: "S1 Zone editor"
-description: "Add-on for creating and tuning detection zones, live tracking, and heatmap visualization for Sensy-One devices."
-version: "v1.2.2"
-slug: "sensy_one_device_finder"
+name: "EPL Zone Editor"
+description: "Add-on for creating and tuning detection zones, live tracking, and heatmap visualization for Everything Presence Lite (LD2450) devices."
+version: "v1.3.0"
+slug: "everything_presence_lite_zone_editor"
 init: false
 arch:
   - aarch64
@@ -10,6 +10,6 @@ startup: services
 boot: auto
 ingress: true
 ingress_port: 8099
-panel_title: "S1 Zone editor"
+panel_title: "EPL Zone Editor"
 panel_icon: "mdi:vector-polygon"
 homeassistant_api: true

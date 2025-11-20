@@ -3,7 +3,7 @@
 <head> 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Sensy-One Zone Editor</title>
+<title>Everything Presence Lite Zone Editor</title>
 <style>
   :root{
     --ui: 1;
@@ -213,7 +213,8 @@
           <button class="zone-btn btn-plain" data-zone="1">Zone 1</button>
           <button class="zone-btn btn-plain" data-zone="2">Zone 2</button>
           <button class="zone-btn btn-plain" data-zone="3">Zone 3</button>
-          <button class="zone-btn btn-plain" data-zone="excl">Exclusion Zone</button>
+          <button class="zone-btn btn-plain" data-zone="4">Zone 4</button>
+          <button class="zone-btn btn-plain" data-zone="excl">Exclusion Mask</button>
         </div>
       </div>
       <div class="section">
@@ -245,10 +246,10 @@
   const viewToggleBtns=[...document.querySelectorAll('.view-toggle-btn[data-view]')];
   const legendSigmaBtns=[...document.querySelectorAll('.legend-btn')];
 
-  const X_MIN=-525, X_MAX=525, Y_MIN=0, Y_MAX=600;
+  const X_MIN=-600, X_MAX=600, Y_MIN=-156, Y_MAX=600;
   const WORLD_W = X_MAX - X_MIN;
   const WORLD_H = Y_MAX - Y_MIN;
-  const MAX_RANGE=600, MAX_POINTS=8, FOV_DEG=120, GRID=100;
+  const MAX_RANGE=600, MAX_POINTS=2, FOV_DEG=120, GRID=100;
   const FOV_RAD = FOV_DEG * Math.PI / 180;
 
   const WALL_HEIGHT_CM = 180;
@@ -266,7 +267,7 @@
 
   let cssW=0, cssH=0, dpr=1, PAD=12;
   let currentZone=null;
-  const zones={'1':[],'2':[],'3':[],'excl':[]};
+  const zones={'1':[],'2':[],'3':[],'4':[],'excl':[]};
   const livePos = {
     1: { x: NaN, y: NaN, px: NaN, py: NaN, heading: 0 },
     2: { x: NaN, y: NaN, px: NaN, py: NaN, heading: 0 },
@@ -314,7 +315,7 @@
     aspect:1
   };
 
-  const BOOT_KEY='sensy_boot_reloaded_once';
+  const BOOT_KEY='epl_boot_reloaded_once';
   let liveTimer=null, livePauseDepth=0, liveInFlight=false;
   const LIVE_INTERVAL_MS=30;
 
@@ -411,7 +412,13 @@
 {% set out = namespace(items=[], ids=[]) %}
 {% for s in states %}
   {% set dev = s.entity_id | device_id %}
-  {% if dev and (device_attr(dev,'manufacturer') or '') == 'Sensy-One' and (dev not in out.ids) %}
+  {% set mfr = (device_attr(dev,'manufacturer') or '') | lower %}
+  {% if dev and (dev not in out.ids) and (
+    'everything' in mfr or
+    mfr == 'esphome' or
+    'presence lite' in (device_attr(dev,'name') or device_attr(dev,'model') or '') | lower or
+    'ld2450' in (device_attr(dev,'model') or '') | lower
+  ) %}
     {% set name = device_attr(dev,'name_by_user') or device_attr(dev,'name') or dev %}
     {% set model = device_attr(dev,'model') or '' %}
     {% set out.items = out.items + [ { 'device_id': dev, 'name': name, 'model': model } ] %}
@@ -430,17 +437,17 @@
 ) %}
 {% for s in states if (s.entity_id | device_id) == dev %}
   {% set id = s.entity_id %}
-  {% if id.endswith('target_1_x') %}{% set out.x1 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_1_y') %}{% set out.y1 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_1_angle') %}{% set out.a1 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target1_x') %}{% set out.x1 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target1_y') %}{% set out.y1 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target1_angle') %}{% set out.a1 = (s.state | float(0)) %}{% endif %}
 
-  {% if id.endswith('target_2_x') %}{% set out.x2 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_2_y') %}{% set out.y2 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_2_angle') %}{% set out.a2 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target2_x') %}{% set out.x2 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target2_y') %}{% set out.y2 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target2_angle') %}{% set out.a2 = (s.state | float(0)) %}{% endif %}
 
-  {% if id.endswith('target_3_x') %}{% set out.x3 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_3_y') %}{% set out.y3 = (s.state | float(0)) %}{% endif %}
-  {% if id.endswith('target_3_angle') %}{% set out.a3 = (s.state | float(0)) %}{% endif %}
+  {% if id.endswith('target3_x') %}{% set out.x3 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target3_y') %}{% set out.y3 = ((s.state | float(0)) / 10.0) %}{% endif %}
+  {% if id.endswith('target3_angle') %}{% set out.a3 = (s.state | float(0)) %}{% endif %}
 {% endfor %}
 {{ {
   '1': {'x': out.x1, 'y': out.y1, 'angle': out.a1},
@@ -496,17 +503,22 @@
     }catch(_e){} finally{ liveInFlight=false; }
   }
 
-  function findEntityIdBySuffix(suffix){
-    return (entities.find(x=>x.entity_id.endsWith(suffix))?.entity_id)||null;
+  function findEntityIdBySuffix(suffix, domain=null){
+    const match = domain
+      ? entities.find(x=>x.entity_id.endsWith(suffix) && x.domain===domain)
+      : entities.find(x=>x.entity_id.endsWith(suffix));
+    return match?.entity_id || null;
   }
-  function readNumberBySuffix(suffix){
-    const e=entities.find(x=>x.entity_id.endsWith(suffix));
+  function readNumberBySuffix(suffix, domain='number'){
+    const e = domain
+      ? entities.find(x=>x.entity_id.endsWith(suffix) && x.domain===domain)
+      : entities.find(x=>x.entity_id.endsWith(suffix));
     if(!e) return null;
     const v=(typeof e.state==='number')?e.state:Number(e.state);
     return Number.isFinite(v)?v:null;
   }
   async function setNumberBySuffix(suffix,value){
-    const id=findEntityIdBySuffix(suffix);
+    const id=findEntityIdBySuffix(suffix, 'number');
     if(!id) throw new Error('Entity not found: *'+suffix);
     await api('api/services/number/set_value',{entity_id:id,value});
     const e=entities.find(x=>x.entity_id===id);
@@ -516,17 +528,19 @@
   function zid(z){
     if(z==='excl'){
       return {
-        label:'Exclusion Zone',
-        count:'exclusion_zone_points_count',
-        x:(i)=>`exclusion_zone_p${i}_x`,
-        y:(i)=>`exclusion_zone_p${i}_y`
+        label:'Exclusion Mask 1',
+        beginX:'occupancy_mask_1_begin_x',
+        endX:'occupancy_mask_1_end_x',
+        beginY:'occupancy_mask_1_begin_y',
+        endY:'occupancy_mask_1_end_y'
       };
     }
     return {
       label:`Zone ${z}`,
-      count:`zone_${z}_points_count`,
-      x:(i)=>`zone_${z}_p${i}_x`,
-      y:(i)=>`zone_${z}_p${i}_y`
+      beginX:`zone${z}_begin_x`,
+      endX:`zone${z}_end_x`,
+      beginY:`zone${z}_begin_y`,
+      endY:`zone${z}_end_y`
     };
   }
 
@@ -537,8 +551,7 @@
   }
 
   async function loadDetectionRangeCore(){
-    let v=readNumberBySuffix('detection_range_cm');
-    if(v===null) v=readNumberBySuffix('detection_range');
+    let v=readNumberBySuffix('distance');
     detRange=Math.round(Math.max(Y_MIN,Math.min(MAX_RANGE,v??MAX_RANGE)));
     rangeInput.value=String(detRange);
   }
@@ -552,11 +565,7 @@
     val=Math.max(Y_MIN,Math.min(MAX_RANGE,val));
     try{
       setStatus('','Saving range…');
-      try{
-        await setNumberBySuffix('detection_range_cm',val);
-      }catch{
-        await setNumberBySuffix('detection_range',val);
-      }
+      await setNumberBySuffix('distance',val);
       detRange=val;
       setStatus('ok','Range: '+val+' cm');
       enqueueDraw();
@@ -567,12 +576,24 @@
 
   async function loadZoneCore(z){
     const id=zid(z);
-    const n=Math.max(0,Math.min(MAX_POINTS,Math.round(readNumberBySuffix(id.count)||0)));
+    // EPL LD2450 zones are rectangular: read begin and end coordinates (in mm, convert to cm)
+    const beginX=Math.round((readNumberBySuffix(id.beginX)??0)/10);
+    const endX=Math.round((readNumberBySuffix(id.endX)??0)/10);
+    const beginY=Math.round((readNumberBySuffix(id.beginY)??0)/10);
+    const endY=Math.round((readNumberBySuffix(id.endY)??0)/10);
+
     const pts=[];
-    for(let i=1;i<=n;i++){
-      const x=Math.round(readNumberBySuffix(id.x(i))??0);
-      const y=Math.round(readNumberBySuffix(id.y(i))??0);
-      pts.push({x:clamp(x,X_MIN,X_MAX), y:clamp(y,Y_MIN,Y_MAX)});
+    // If zone has valid coordinates, expand to 4-corner rectangle for proper rendering
+    if(beginX!==0 || endX!==0 || beginY!==0 || endY!==0){
+      const x1=clamp(beginX,X_MIN,X_MAX);
+      const x2=clamp(endX,X_MIN,X_MAX);
+      const y1=clamp(beginY,Y_MIN,Y_MAX);
+      const y2=clamp(endY,Y_MIN,Y_MAX);
+      // Create 4 corners of rectangle (clockwise from top-left)
+      pts.push({x:x1, y:y1});
+      pts.push({x:x2, y:y1});
+      pts.push({x:x2, y:y2});
+      pts.push({x:x1, y:y2});
     }
     zones[z]=pts;
   }
@@ -584,7 +605,7 @@
     }
     setStatus('','Loading…');
     await loadDetectionRangeCore();
-    for(const z of ['1','2','3','excl']) await loadZoneCore(z);
+    for(const z of ['1','2','3','4','excl']) await loadZoneCore(z);
     enqueueDraw();
     setStatus('ok','Ready');
   }
@@ -601,20 +622,35 @@
     }
     const id=zid(currentZone);
     const pts=zones[currentZone]||[];
-    const n=Math.min(MAX_POINTS,pts.length);
     try{
       saving=true;
       saveBtn.disabled=true;
       setStatus('','Saving '+id.label+'…');
-      const tasks=[];
-      for(let i=1;i<=MAX_POINTS;i++){
-        const p=pts[i-1]||{x:0,y:0};
-        tasks.push(setNumberBySuffix(id.x(i),Math.round(clamp(p.x||0,X_MIN,X_MAX))));
-        tasks.push(setNumberBySuffix(id.y(i),Math.round(clamp(p.y||0,Y_MIN,Y_MAX))));
+
+      // EPL LD2450 zones are rectangular: save as begin/end coordinates (convert cm to mm)
+      let beginX=0, endX=0, beginY=0, endY=0;
+      if(pts.length>=2){
+        // Extract min/max from all points to get bounding rectangle
+        const allX=pts.map(p=>p.x||0);
+        const allY=pts.map(p=>p.y||0);
+        const minX=Math.min(...allX);
+        const maxX=Math.max(...allX);
+        const minY=Math.min(...allY);
+        const maxY=Math.max(...allY);
+        beginX=Math.round(clamp(minX,X_MIN,X_MAX)*10);
+        endX=Math.round(clamp(maxX,X_MIN,X_MAX)*10);
+        beginY=Math.round(clamp(minY,Y_MIN,Y_MAX)*10);
+        endY=Math.round(clamp(maxY,Y_MIN,Y_MAX)*10);
       }
+
+      const tasks=[
+        setNumberBySuffix(id.beginX,beginX),
+        setNumberBySuffix(id.endX,endX),
+        setNumberBySuffix(id.beginY,beginY),
+        setNumberBySuffix(id.endY,endY)
+      ];
       await Promise.allSettled(tasks);
-      await setNumberBySuffix(id.count,n);
-      setStatus('ok',`Saved (${n} point${n===1?'':'s'})`);
+      setStatus('ok',`Saved (${pts.length} point${pts.length===1?'':'s'})`);
       await loadZoneCore(currentZone);
       enqueueDraw();
     }catch(e){
@@ -1339,7 +1375,7 @@
     const walls = [];
 
     ctx.save();
-    for(const key of ['1','2','3','excl']){
+    for(const key of ['1','2','3','4','excl']){
       const pts = zones[key];
       if(!pts || pts.length<2) continue;
       const active = currentZone && key===currentZone;
@@ -1846,7 +1882,7 @@ const HUMAN_TRIANGLES = [
       drawFov(MAX_RANGE,false);
       if(detRange>0&&detRange<MAX_RANGE) drawFov(detRange,true);
       drawHeatmap2D();
-      for(const key of ['1','2','3','excl']){
+      for(const key of ['1','2','3','4','excl']){
         const active = currentZone && key===currentZone;
         const style=zoneStyle(key,active);
         if(!active) drawPolygon(zones[key],style);
