@@ -412,7 +412,13 @@
 {% set out = namespace(items=[], ids=[]) %}
 {% for s in states %}
   {% set dev = s.entity_id | device_id %}
-  {% if dev and (device_attr(dev,'manufacturer') or '') == 'Everything Smart Home' and (dev not in out.ids) %}
+  {% set mfr = (device_attr(dev,'manufacturer') or '') | lower %}
+  {% if dev and (dev not in out.ids) and (
+    'everything' in mfr or
+    mfr == 'esphome' or
+    'presence lite' in (device_attr(dev,'name') or device_attr(dev,'model') or '') | lower or
+    'ld2450' in (device_attr(dev,'model') or '') | lower
+  ) %}
     {% set name = device_attr(dev,'name_by_user') or device_attr(dev,'name') or dev %}
     {% set model = device_attr(dev,'model') or '' %}
     {% set out.items = out.items + [ { 'device_id': dev, 'name': name, 'model': model } ] %}
@@ -497,17 +503,22 @@
     }catch(_e){} finally{ liveInFlight=false; }
   }
 
-  function findEntityIdBySuffix(suffix){
-    return (entities.find(x=>x.entity_id.endsWith(suffix))?.entity_id)||null;
+  function findEntityIdBySuffix(suffix, domain=null){
+    const match = domain
+      ? entities.find(x=>x.entity_id.endsWith(suffix) && x.domain===domain)
+      : entities.find(x=>x.entity_id.endsWith(suffix));
+    return match?.entity_id || null;
   }
-  function readNumberBySuffix(suffix){
-    const e=entities.find(x=>x.entity_id.endsWith(suffix));
+  function readNumberBySuffix(suffix, domain='number'){
+    const e = domain
+      ? entities.find(x=>x.entity_id.endsWith(suffix) && x.domain===domain)
+      : entities.find(x=>x.entity_id.endsWith(suffix));
     if(!e) return null;
     const v=(typeof e.state==='number')?e.state:Number(e.state);
     return Number.isFinite(v)?v:null;
   }
   async function setNumberBySuffix(suffix,value){
-    const id=findEntityIdBySuffix(suffix);
+    const id=findEntityIdBySuffix(suffix, 'number');
     if(!id) throw new Error('Entity not found: *'+suffix);
     await api('api/services/number/set_value',{entity_id:id,value});
     const e=entities.find(x=>x.entity_id===id);
@@ -572,10 +583,17 @@
     const endY=Math.round((readNumberBySuffix(id.endY)??0)/10);
 
     const pts=[];
-    // If zone has valid coordinates, create 2-point rectangle (opposite corners)
+    // If zone has valid coordinates, expand to 4-corner rectangle for proper rendering
     if(beginX!==0 || endX!==0 || beginY!==0 || endY!==0){
-      pts.push({x:clamp(beginX,X_MIN,X_MAX), y:clamp(beginY,Y_MIN,Y_MAX)});
-      pts.push({x:clamp(endX,X_MIN,X_MAX), y:clamp(endY,Y_MIN,Y_MAX)});
+      const x1=clamp(beginX,X_MIN,X_MAX);
+      const x2=clamp(endX,X_MIN,X_MAX);
+      const y1=clamp(beginY,Y_MIN,Y_MAX);
+      const y2=clamp(endY,Y_MIN,Y_MAX);
+      // Create 4 corners of rectangle (clockwise from top-left)
+      pts.push({x:x1, y:y1});
+      pts.push({x:x2, y:y1});
+      pts.push({x:x2, y:y2});
+      pts.push({x:x1, y:y2});
     }
     zones[z]=pts;
   }
@@ -612,13 +630,17 @@
       // EPL LD2450 zones are rectangular: save as begin/end coordinates (convert cm to mm)
       let beginX=0, endX=0, beginY=0, endY=0;
       if(pts.length>=2){
-        // Use first two points as opposite corners of rectangle
-        const p1=pts[0];
-        const p2=pts[1];
-        beginX=Math.round(clamp(p1.x||0,X_MIN,X_MAX)*10);
-        endX=Math.round(clamp(p2.x||0,X_MIN,X_MAX)*10);
-        beginY=Math.round(clamp(p1.y||0,Y_MIN,Y_MAX)*10);
-        endY=Math.round(clamp(p2.y||0,Y_MIN,Y_MAX)*10);
+        // Extract min/max from all points to get bounding rectangle
+        const allX=pts.map(p=>p.x||0);
+        const allY=pts.map(p=>p.y||0);
+        const minX=Math.min(...allX);
+        const maxX=Math.max(...allX);
+        const minY=Math.min(...allY);
+        const maxY=Math.max(...allY);
+        beginX=Math.round(clamp(minX,X_MIN,X_MAX)*10);
+        endX=Math.round(clamp(maxX,X_MIN,X_MAX)*10);
+        beginY=Math.round(clamp(minY,Y_MIN,Y_MAX)*10);
+        endY=Math.round(clamp(maxY,Y_MIN,Y_MAX)*10);
       }
 
       const tasks=[
